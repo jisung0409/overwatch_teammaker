@@ -1,57 +1,74 @@
 import streamlit as st
 import pandas as pd
 import random
+import requests
+import json
 
 st.set_page_config(layout="wide", page_title="옵치 내전 밸런서")
 
-# --- 1. 초기 DB 세팅 (세션에 저장하여 앱 구동 중 유지) ---
+# 아까 복사해둔 Apps Script 웹 앱 URL을 여기에 넣으세요!
+WEB_APP_URL = "여기에_웹앱_URL을_붙여넣으세요"
+
+# 시트에서 데이터 불러오기
+@st.cache_data(ttl=0) # 캐시 안 써서 항상 최신 데이터 불러오기
+def load_data():
+    try:
+        response = requests.get(WEB_APP_URL)
+        data = response.json()
+        if not data: # 데이터가 비어있을 경우 빈 포맷 생성
+            return pd.DataFrame(columns=['이름', '탱커', '메인딜러', '서브딜러', '힐러'])
+        return pd.DataFrame(data)
+    except Exception as e:
+        st.error("데이터를 불러오는 중 오류가 발생했습니다.")
+        return pd.DataFrame()
+
+# 초기 데이터 로드
 if 'player_db' not in st.session_state:
-    # 기본 샘플 데이터 (1~10점 스케일)
-    st.session_state.player_db = pd.DataFrame({
-        '이름': [f"플레이어{i}" for i in range(1, 13)], # 테스트용 12명
-        '탱커': [random.randint(3, 10) for _ in range(12)],
-        '메인딜러': [random.randint(3, 10) for _ in range(12)],
-        '서브딜러': [random.randint(3, 10) for _ in range(12)],
-        '힐러': [random.randint(3, 10) for _ in range(12)],
-    })
+    st.session_state.player_db = load_data()
 
-# --- 2. 사이드바 메뉴 (화면 분리) ---
 st.sidebar.title("메뉴")
-menu = st.sidebar.radio("이동할 페이지를 선택하세요:", ["🏠 내전 팀 짜기", "👥 플레이어 DB 관리"])
-
-st.sidebar.markdown("---")
-st.sidebar.info("💡 **Tip:** 추후 DB 연동 작업 시, '플레이어 DB 관리' 화면의 데이터를 구글 시트로 연결하도록 업데이트하면 관리가 더욱 편해집니다.")
-
+menu = st.sidebar.radio("페이지 이동:", ["🏠 내전 팀 짜기", "👥 플레이어 DB 관리"])
 
 # ==========================================
 # 화면 A: 플레이어 DB 관리 페이지
 # ==========================================
 if menu == "👥 플레이어 DB 관리":
-    st.title("👥 플레이어 DB 관리")
-    st.write("플레이어들의 포지션별 실력 점수(1~10점)를 미리 입력해 두는 곳입니다.")
-    st.write("표 맨 아래 빈칸을 클릭해 **새로운 플레이어를 추가**하거나, 왼쪽 체크박스를 선택해 **삭제**할 수 있습니다. (플레이 불가능한 포지션은 0점)")
+    st.title("👥 플레이어 DB 관리 (Apps Script 연동)")
+    st.write("여기서 수정한 내용은 구글 시트에 실시간으로 저장됩니다.")
     
-    # num_rows="dynamic" 옵션으로 자유로운 행 추가/삭제 지원
+    # 데이터 수정 에디터
     edited_db = st.data_editor(
         st.session_state.player_db, 
         num_rows="dynamic", 
         use_container_width=True, 
         hide_index=True
     )
-    # 수정한 데이터를 세션에 덮어씌워 팀 짜기 화면에서도 반영되게 함
-    st.session_state.player_db = edited_db
-
+    
+    # 저장 버튼
+    if st.button("💾 구글 시트에 변경사항 저장하기"):
+        with st.spinner("구글 시트에 동기화 중..."):
+            edited_db = edited_db.fillna(0) # 빈칸 0점 처리
+            
+            # DataFrame을 JSON으로 변환하여 POST 요청 보내기
+            json_data = edited_db.to_dict('records')
+            response = requests.post(WEB_APP_URL, json=json_data)
+            
+            if response.status_code == 200:
+                st.session_state.player_db = edited_db
+                st.success("성공적으로 구글 시트에 반영되었습니다!")
+                st.cache_data.clear()
+            else:
+                st.error("저장 실패! 연결 상태를 확인해 주세요.")
 
 # ==========================================
-# 화면 B: 내전 팀 짜기 페이지 (메인)
+# 화면 B: 내전 팀 짜기 페이지 (이전 코드와 완전 동일)
 # ==========================================
 elif menu == "🏠 내전 팀 짜기":
     st.title("🎮 오버워치 5:5 내전 팀 밸런서")
-    st.write("DB에 등록된 인원 중 **오늘 참여할 10명**을 고르면 밸런스에 맞춰 팀을 나눕니다.")
     
-    db_names = st.session_state.player_db['이름'].tolist()
+    # NaN이나 빈 문자열 등 잘못된 데이터 전처리
+    db_names = [name for name in st.session_state.player_db['이름'].tolist() if pd.notna(name) and str(name).strip() != '']
     
-    # 멀티셀렉트로 10명 고르기 (기본값으로 위에서부터 10명 자동 선택)
     selected_names = st.multiselect(
         "⚔️ 오늘 내전에 참여할 10명을 고르세요:", 
         options=db_names,
@@ -62,18 +79,14 @@ elif menu == "🏠 내전 팀 짜기":
         st.warning(f"현재 {len(selected_names)}명 선택되었습니다. 정확히 10명을 선택해야 합니다.")
     else:
         if st.button("🚀 팀 나누기 시작!", type="primary"):
-            # 선택된 10명의 데이터만 DB에서 추출
             selected_players_df = st.session_state.player_db[st.session_state.player_db['이름'].isin(selected_names)]
             players = selected_players_df.to_dict('records')
             
-            # 포지션 슬롯 (각 팀: 탱1, 메딜1, 서딜1, 힐2) -> 번갈아가며 배정
             roles = ['탱커', '탱커', '메인딜러', '메인딜러', '서브딜러', '서브딜러', '힐러', '힐러', '힐러', '힐러']
-            
             best_diff = float('inf')
             best_match = None
             
             with st.spinner('최적의 황금 밸런스를 계산 중입니다...'):
-                # 스케일이 1~10으로 작아졌으므로 시도 횟수를 늘려 정밀도 상승
                 for _ in range(30000): 
                     random.shuffle(players)
                     is_valid = True
@@ -82,9 +95,13 @@ elif menu == "🏠 내전 팀 짜기":
                     
                     for i in range(10):
                         p, role = players[i], roles[i]
-                        score = p[role]
                         
-                        # 0점이거나 비어있으면 배정 불가
+                        # Apps Script에서 넘어오면서 문자열로 인식될 수 있으니 int/float 처리
+                        try:
+                            score = float(p.get(role, 0))
+                        except ValueError:
+                            score = 0
+                            
                         if pd.isna(score) or score <= 0:
                             is_valid = False
                             break
@@ -101,8 +118,6 @@ elif menu == "🏠 내전 팀 짜기":
                         if diff < best_diff:
                             best_diff = diff
                             best_match = (match_result, t1_score, t2_score)
-                            
-                            # 1~10 스케일이므로 양 팀 점수 차이가 1점 이하면 즉시 종료
                             if diff <= 1: 
                                 break
 
@@ -111,13 +126,13 @@ elif menu == "🏠 내전 팀 짜기":
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    st.subheader(f"🔵 블루 팀 (합계: {s1}점)")
+                    st.subheader(f"🔵 블루 팀 (합계: {int(s1)}점)")
                     st.dataframe(pd.DataFrame(match['Team1']), hide_index=True, use_container_width=True)
                     
                 with col2:
-                    st.subheader(f"🔴 레드 팀 (합계: {s2}점)")
+                    st.subheader(f"🔴 레드 팀 (합계: {int(s2)}점)")
                     st.dataframe(pd.DataFrame(match['Team2']), hide_index=True, use_container_width=True)
                     
-                st.info(f"⚖️ 양 팀 점수 차이: **{abs(s1 - s2)}점**")
+                st.info(f"⚖️ 양 팀 점수 차이: **{int(abs(s1 - s2))}점**")
             else:
                 st.error("🚨 10명의 포지션 폭이 겹쳐서 팀을 구성할 수 없습니다. DB에서 포지션별 점수를 확인해 주세요.")
