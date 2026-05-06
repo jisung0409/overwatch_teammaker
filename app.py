@@ -10,17 +10,19 @@ st.set_page_config(layout="wide", page_title="옵치 내전 밸런서")
 WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwvJh8WjDUALBD7sB7ht-e4yFxivOvzPyUGOsMLYTcdJ6vbQYJaZEbR5KchUKh3K8i3zQ/exec"
 
 # 시트에서 데이터 불러오기
-@st.cache_data(ttl=0) # 캐시 안 써서 항상 최신 데이터 불러오기
+@st.cache_data(ttl=0) 
 def load_data():
     try:
         response = requests.get(WEB_APP_URL)
-        data = response.json()
-        if not data: # 데이터가 비어있을 경우 빈 포맷 생성
+        # 구글 로그인 창(HTML)이 넘어오면 json() 변환에서 에러가 남
+        data = response.json() 
+        if not data: 
             return pd.DataFrame(columns=['이름', '탱커', '메인딜러', '서브딜러', '힐러'])
         return pd.DataFrame(data)
     except Exception as e:
-        st.error("데이터를 불러오는 중 오류가 발생했습니다.")
-        return pd.DataFrame()
+        # 에러가 나더라도 '이름' 열이 존재하는 빈 표를 만들어서 사이트가 뻗는 걸 막아줌
+        st.error("🚨 구글 시트 연결 실패! URL 주소, 앱스 스크립트 권한, 시트 이름을 다시 확인해 주세요.")
+        return pd.DataFrame(columns=['이름', '탱커', '메인딜러', '서브딜러', '힐러'])
 
 # 초기 데이터 로드
 if 'player_db' not in st.session_state:
