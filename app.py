@@ -7,7 +7,7 @@ import json
 st.set_page_config(layout="wide", page_title="옵치 내전 밸런서")
 
 # 아까 복사해둔 Apps Script 웹 앱 URL을 여기에 넣으세요!
-WEB_APP_URL = "여기에_웹앱_URL을_붙여넣으세요"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycby27Ae1rCO_Rvtn2_Nf1x5HFJIPEfzo0fzZtVvU1o_3KOvqEF5To5cW1p32aXgoiEtb/exec"
 
 # 시트에서 데이터 불러오기
 @st.cache_data(ttl=0) # 캐시 안 써서 항상 최신 데이터 불러오기
