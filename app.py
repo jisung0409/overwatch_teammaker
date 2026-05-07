@@ -6,7 +6,7 @@ import requests
 st.set_page_config(layout="wide", page_title="옵치 내전 시스템")
 
 # 🔴 여기에 본인의 웹 앱 URL을 넣으세요!
-WEB_APP_URL = "여기에_웹앱_URL을_붙여넣으세요"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyTYisY1s5QEP8UqGV01_zj1SeI_yqCjlz1HgNwzXnIAsAoJE1tsC0oAag27vA02QwnQA/exec"
 
 # 전적 관련 추가할 기본 컬럼들
 STATS_COLS = ['총_경기', '총_승리', '탱커_판', '탱커_승', '메인딜러_판', '메인딜러_승', '서브딜러_판', '서브딜러_승', '힐러_판', '힐러_승']
