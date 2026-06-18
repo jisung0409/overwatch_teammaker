@@ -6,7 +6,7 @@ import requests
 st.set_page_config(layout="wide", page_title="옵치 내전 시스템")
 
 # 🔴 여기에 본인의 웹 앱 URL을 넣으세요!
-WEB_APP_URL = "https://overwatchteammaker-5jtrdpszpquqq9bqm3jrfm.streamlit.app/"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwzO63tMB7jkr9tUAPU0cZTgxv4OjKj9iZi-zfkSkVxdc83Hn05CDFzQe4N5u5x0fyF0w/exec"
 
 # 전적 관련 컬럼들
 STATS_COLS = ['총_경기', '총_승리', '탱커_판', '탱커_승', '메인딜러_판', '메인딜러_승', '서브딜러_판', '서브딜러_승', '힐러_판', '힐러_승']
